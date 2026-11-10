@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Giving Directions - Pronunciation Practice</title>
+<style>
+body{font-family:Arial,sans-serif;background:#eef4ff;margin:0;padding:20px;color:#17233b}
+main{max-width:760px;margin:auto}
+header{text-align:center;padding:22px;background:#2448ad;color:white;border-radius:18px}
+.card{background:white;padding:24px;border-radius:18px;margin-top:20px;box-shadow:0 3px 12px #0001}
+h1{font-size:27px}h2{font-size:21px}
+.sentence{font-size:25px;font-weight:bold;line-height:1.5}
+.translation{color:#555}
+button{border:0;border-radius:12px;padding:14px 18px;margin:5px;font-size:16px;cursor:pointer;background:#2448ad;color:white}
+button:disabled{opacity:.4}
+.secondary{background:#168568}.gray{background:#64748b}
+.score{font-size:35px;font-weight:bold;color:#176c43}
+.good{color:#15803d}.bad{color:#dc2626}
+#recognized{font-size:19px;line-height:1.6}
+small{color:#666}select{padding:10px;border-radius:8px;font-size:16px}
+</style>
+</head>
+<body>
+<main>
+<header><h1>🗺️ Giving Directions</h1><p>Grade 7 | English Pronunciation Practice</p></header>
+<section class="card">
+<label>Practice sentence: <select id="picker"></select></label>
+<p id="progress"></p>
+<div class="sentence" id="sentence"></div>
+<p class="translation" id="translation"></p>
+<button onclick="speak()">🔊 Listen</button>
+<button class="secondary" id="mic" onclick="record()">🎤 Speak</button>
+<button class="gray" onclick="next()">Next →</button>
+</section>
+<section class="card">
+<h2>Pronunciation Check</h2>
+<p id="status" aria-live="polite">Listen, then speak into your microphone.</p>
+<div id="recognized"></div>
+<p class="score" id="score"></p>
+<p id="feedback"></p>
+<small>Score measures word recognition similarity, not exact pronunciation quality. Chrome speech recognition may process audio using an external service. Do not speak personal information.</small>
+</section>
+</main>
+<script>
+const items=[
+["Excuse me. I'm looking for City Hospital.","すみません。市立病院を探しています。"],
+["Pardon me?","もう一度言っていただけますか。"],
+["Where's City Hospital?","市立病院はどこですか。"],
+["Let's see. Go along this street.","ええと。この通りに沿って進んでください。"],
+["Turn left at the second traffic light.","2つ目の信号を左に曲がってください。"],
+["Go straight, and turn right at the factory.","まっすぐ進み、工場のところを右に曲がってください。"],
+["You can see a large building.","大きな建物が見えます。"],
+["That's the hospital.","それが病院です。"],
+["Thank you.","ありがとうございます。"],
+["Go straight for two blocks.","2区画まっすぐ進んでください。"],
+["You can see it on your right.","右側に見えます。"],
+["How can I get to the library?","図書館へはどう行けばよいですか。"]
+];
+let current=0;
+const picker=document.getElementById("picker");
+items.forEach((x,i)=>{let o=document.createElement("option");o.value=i;o.textContent=(i+1)+". "+x[0];picker.appendChild(o)});
+picker.onchange=()=>{current=Number(picker.value);show()};
+function show(){
+picker.value=current;
+document.getElementById("progress").textContent="Sentence "+(current+1)+" / "+items.length;
+document.getElementById("sentence").textContent=items[current][0];
+document.getElementById("translation").textContent=items[current][1];
+document.getElementById("recognized").textContent="";
+document.getElementById("score").textContent="";
+document.getElementById("feedback").textContent="";
+document.getElementById("status").textContent="Listen, then speak into your microphone.";
+}
+function speak(){
+speechSynthesis.cancel();
+let u=new SpeechSynthesisUtterance(items[current][0]);
+u.lang="en-US";u.rate=.85;
+speechSynthesis.speak(u);
+}
+function next(){current=(current+1)%items.length;show()}
+function norm(s){return s.toLowerCase().replace(/[^a-z0-9\s]/g,"").replace(/\s+/g," ").trim()}
+function record(){
+const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
+if(!SR){document.getElementById("status").textContent="Speech recognition is not available. Please use Chrome.";return}
+speechSynthesis.cancel();
+const target=items[current][0];
+const r=new SR();r.lang="en-US";r.interimResults=false;r.maxAlternatives=1;
+document.getElementById("status").textContent="Listening... Please speak.";
+document.getElementById("mic").disabled=true;
+r.onresult=e=>{
+const heard=e.results[0][0].transcript;
+const a=norm(target).split(" "),b=norm(heard).split(" ");
+const dp=Array.from({length:a.length+1},()=>Array(b.length+1).fill(0));
+for(let i=0;i<=a.length;i++)dp[i][0]=i;
+for(let j=0;j<=b.length;j++)dp[0][j]=j;
+for(let i=1;i<=a.length;i++)for(let j=1;j<=b.length;j++)
+dp[i][j]=Math.min(dp[i-1][j]+1,dp[i][j-1]+1,dp[i-1][j-1]+(a[i-1]===b[j-1]?0:1));
+const score=Math.max(0,Math.round(100*(1-dp[a.length][b.length]/Math.max(a.length,b.length,1))));
+document.getElementById("recognized").textContent="Recognized: "+heard;
+document.getElementById("score").textContent=score+" / 100";
+document.getElementById("feedback").textContent=score>=90?"Excellent! 🌟":score>=70?"Good! Try again.":"Listen and try again.";
+document.getElementById("status").textContent="Finished!";
+};
+r.onerror=e=>{document.getElementById("status").textContent="Microphone or recognition error: "+e.error};
+r.onend=()=>{document.getElementById("mic").disabled=false};
+try{r.start()}catch(e){document.getElementById("mic").disabled=false;document.getElementById("status").textContent="Could not start microphone."}
+}
+show();
+</script>
+</body>
+</html>
